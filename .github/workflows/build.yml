@@ -792,22 +792,6 @@ jobs:
           SUB_LEVEL: ${{ inputs.sub_level }}
         run: bash "$GITHUB_WORKSPACE/scripts/susfs_fixes/apply.sh"
 
-      - name: 应用 vendor hooks 对齐补丁 (0007)
-        if: inputs.kernel_version == '6.6' && inputs.android_version == 'android15'
-        working-directory: ${{ env.KERNEL_ROOT }}/common
-        run: |
-          set -e
-          echo "=== 应用 0007 stock-parity vendor hooks ==="
-          patch -p1 --forward < "$GITHUB_WORKSPACE/xiaomi_parity/0007-stock-parity-hooks.patch"
-          echo "=== 配置: 压制未采纳的小米特性（防 default y 生效）==="
-          cat >> "$DEFCONFIG" << 'EOF'
-          # CONFIG_F2FS_VIP_FILE is not set
-          # CONFIG_XIAOMI_ENHANCED_IOSTAT is not set
-          # CONFIG_F2FS_FS_HYBRID_UFS is not set
-          # CONFIG_BLOCK_HYBRID_UFS is not set
-          EOF
-          echo "0007 vendor hooks 补丁应用完成"
-
       - name: 生成 SUSFS 集成补丁
         if: env.SUSFS_PATCH_EXPORT == 'true'
         working-directory: ${{ env.KERNEL_ROOT }}/common
