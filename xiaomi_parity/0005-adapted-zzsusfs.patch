@@ -71,7 +71,7 @@ index c3a1699..9719c2e 100644
  f2fs-$(CONFIG_F2FS_FS_XATTR) += xattr.o
  f2fs-$(CONFIG_F2FS_FS_POSIX_ACL) += acl.o
 diff --git a/fs/f2fs/compress.c b/fs/f2fs/compress.c
-index 6bc7af9..68a8c10 100644
+index 6bc7af9..43b8107 100644
 --- a/fs/f2fs/compress.c
 +++ b/fs/f2fs/compress.c
 @@ -1266,6 +1266,7 @@ static int f2fs_write_compressed_pages(struct compress_ctx *cc,
@@ -82,28 +82,27 @@ index 6bc7af9..68a8c10 100644
  	struct inode *inode = cc->inode;
  	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
  	struct f2fs_inode_info *fi = F2FS_I(inode);
-@@ -1516,6 +1517,7 @@ static int f2fs_write_raw_pages(struct compress_ctx *cc,
+@@ -1288,7 +1289,6 @@ static int f2fs_write_compressed_pages(struct compress_ctx *cc,
+ 	struct dnode_of_data dn;
+ 	struct node_info ni;
+ 	struct compress_io_ctx *cic;
+-	struct f2fs_lock_context lc;
+ 	pgoff_t start_idx = start_idx_of_cluster(cc);
+ 	unsigned int last_index = cc->cluster_size - 1;
+ 	loff_t psize;
+@@ -1516,9 +1516,9 @@ static int f2fs_write_raw_pages(struct compress_ctx *cc,
  					struct writeback_control *wbc,
  					enum iostat_type io_type)
  {
 +	struct f2fs_lock_context lc;
  	struct address_space *mapping = cc->inode->i_mapping;
  	struct f2fs_sb_info *sbi = F2FS_M_SB(mapping);
- 	struct f2fs_lock_context lc;
-diff --git a/fs/f2fs/data.c b/fs/f2fs/data.c
-index d827cb6..33b1488 100644
---- a/fs/f2fs/data.c
-+++ b/fs/f2fs/data.c
-@@ -1573,6 +1573,7 @@ int f2fs_map_blocks(struct inode *inode, struct f2fs_map_blocks *map, int flag)
- 	unsigned int start_pgofs;
- 	int bidx = 0;
- 	bool is_hole;
-+	struct f2fs_lock_context lc;
+-	struct f2fs_lock_context lc;
+ 	int submitted, compr_blocks, i;
+ 	int ret = 0;
  
- 	if (!maxblocks)
- 		return 0;
 diff --git a/fs/f2fs/f2fs.h b/fs/f2fs/f2fs.h
-index d61cca5..d46933f 100644
+index d61cca5..ad53aa5 100644
 --- a/fs/f2fs/f2fs.h
 +++ b/fs/f2fs/f2fs.h
 @@ -29,6 +29,8 @@
@@ -136,26 +135,15 @@ index d61cca5..d46933f 100644
  	int discard_unit;		/*
  					 * discard command's offset/size should
  					 * be aligned to this unit: block,
-@@ -1901,6 +1910,18 @@ struct f2fs_sb_info {
+@@ -1900,7 +1909,6 @@ struct f2fs_sb_info {
+ 
  	/* priority for critical task, e.g. f2fs_ckpt, f2fs_gc threads */
  	long critical_task_priority;
- 
-+	/* max elapsed time threshold in critical region that lock covered */
-+	unsigned long long max_lock_elapsed_time;
-+
-+	/* enable/disable to adjust task priority in critical region covered by lock */
-+	unsigned int adjust_lock_priority;
-+
-+	/* adjust priority for task which is in critical region covered by lock */
-+	unsigned int lock_duration_priority;
-+
-+	/* priority for critical task, e.g. f2fs_ckpt, f2fs_gc threads */
-+	long critical_task_priority;
-+
+-
  #ifdef CONFIG_F2FS_FS_COMPRESSION
  	struct kmem_cache *page_array_slab;	/* page array entry */
  	unsigned int page_array_slab_size;	/* default page array slab size */
-@@ -1934,6 +1955,16 @@ struct f2fs_sb_info {
+@@ -1934,6 +1942,16 @@ struct f2fs_sb_info {
  #ifdef CONFIG_DEBUG_LOCK_ALLOC
  	struct lock_class_key cp_global_sem_key;
  #endif
@@ -173,7 +161,7 @@ index d61cca5..d46933f 100644
  
  /* Definitions to access f2fs_sb_info */
 diff --git a/fs/f2fs/file.c b/fs/f2fs/file.c
-index ce54bd8..55159a3 100644
+index ce54bd8..3b4136f 100644
 --- a/fs/f2fs/file.c
 +++ b/fs/f2fs/file.c
 @@ -597,6 +597,7 @@ static int finish_preallocate_blocks(struct inode *inode)
@@ -213,15 +201,18 @@ index ce54bd8..55159a3 100644
  	err = dquot_file_open(inode, filp);
  	if (err)
  		return err;
-@@ -749,6 +772,7 @@ static int truncate_partial_data_page(struct inode *inode, u64 from,
+@@ -749,9 +772,9 @@ static int truncate_partial_data_page(struct inode *inode, u64 from,
  
  int f2fs_do_truncate_blocks(struct inode *inode, u64 from, bool lock)
  {
 +	struct f2fs_lock_context lc;
  	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
  	struct dnode_of_data dn;
- 	struct f2fs_lock_context lc;
-@@ -1034,6 +1058,7 @@ static void __setattr_copy(struct mnt_idmap *idmap,
+-	struct f2fs_lock_context lc;
+ 	pgoff_t free_from;
+ 	int count = 0, err = 0;
+ 	struct page *ipage;
+@@ -1034,6 +1057,7 @@ static void __setattr_copy(struct mnt_idmap *idmap,
  int f2fs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
  		 struct iattr *attr)
  {
@@ -229,15 +220,18 @@ index ce54bd8..55159a3 100644
  	struct inode *inode = d_inode(dentry);
  	struct f2fs_inode_info *fi = F2FS_I(inode);
  	int err;
-@@ -1175,6 +1200,7 @@ const struct inode_operations f2fs_file_inode_operations = {
+@@ -1175,9 +1199,9 @@ const struct inode_operations f2fs_file_inode_operations = {
  static int fill_zero(struct inode *inode, pgoff_t index,
  					loff_t start, loff_t len)
  {
 +	struct f2fs_lock_context lc;
  	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
  	struct page *page;
- 	struct f2fs_lock_context lc;
-@@ -1232,6 +1258,7 @@ int f2fs_truncate_hole(struct inode *inode, pgoff_t pg_start, pgoff_t pg_end)
+-	struct f2fs_lock_context lc;
+ 
+ 	if (!len)
+ 		return 0;
+@@ -1232,6 +1256,7 @@ int f2fs_truncate_hole(struct inode *inode, pgoff_t pg_start, pgoff_t pg_end)
  
  static int f2fs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
  {
@@ -245,15 +239,17 @@ index ce54bd8..55159a3 100644
  	pgoff_t pg_start, pg_end;
  	loff_t off_start, off_end;
  	int ret;
-@@ -1512,6 +1539,7 @@ static int __exchange_data_block(struct inode *src_inode,
+@@ -1512,8 +1537,8 @@ static int __exchange_data_block(struct inode *src_inode,
  
  static int f2fs_do_collapse(struct inode *inode, loff_t offset, loff_t len)
  {
-+	struct f2fs_lock_context lc;
- 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+-	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
  	struct f2fs_lock_context lc;
++	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
  	pgoff_t nrpages = DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE);
-@@ -1630,6 +1658,7 @@ static int f2fs_do_zero_range(struct dnode_of_data *dn, pgoff_t start,
+ 	pgoff_t start = offset >> PAGE_SHIFT;
+ 	pgoff_t end = (offset + len) >> PAGE_SHIFT;
+@@ -1630,6 +1655,7 @@ static int f2fs_do_zero_range(struct dnode_of_data *dn, pgoff_t start,
  static int f2fs_zero_range(struct inode *inode, loff_t offset, loff_t len,
  								int mode)
  {
@@ -261,7 +257,7 @@ index ce54bd8..55159a3 100644
  	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
  	struct address_space *mapping = inode->i_mapping;
  	pgoff_t index, pg_start, pg_end;
-@@ -1738,6 +1767,7 @@ static int f2fs_zero_range(struct inode *inode, loff_t offset, loff_t len,
+@@ -1738,6 +1764,7 @@ static int f2fs_zero_range(struct inode *inode, loff_t offset, loff_t len,
  
  static int f2fs_insert_range(struct inode *inode, loff_t offset, loff_t len)
  {
@@ -269,7 +265,7 @@ index ce54bd8..55159a3 100644
  	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
  	struct address_space *mapping = inode->i_mapping;
  	pgoff_t nr, pg_start, pg_end, delta, idx;
-@@ -3048,6 +3078,7 @@ static int f2fs_ioc_defragment(struct file *filp, unsigned long arg)
+@@ -3048,10 +3075,10 @@ static int f2fs_ioc_defragment(struct file *filp, unsigned long arg)
  static int f2fs_move_file_range(struct file *file_in, loff_t pos_in,
  			struct file *file_out, loff_t pos_out, size_t len)
  {
@@ -277,7 +273,11 @@ index ce54bd8..55159a3 100644
  	struct inode *src = file_inode(file_in);
  	struct inode *dst = file_inode(file_out);
  	struct f2fs_sb_info *sbi = F2FS_I_SB(src);
-@@ -3328,6 +3359,7 @@ int f2fs_transfer_project_quota(struct inode *inode, kprojid_t kprojid)
+-	struct f2fs_lock_context lc;
+ 	size_t olen = len, dst_max_i_size = 0;
+ 	size_t dst_osize;
+ 	int ret;
+@@ -3328,10 +3355,10 @@ int f2fs_transfer_project_quota(struct inode *inode, kprojid_t kprojid)
  
  static int f2fs_ioc_setproject(struct inode *inode, __u32 projid)
  {
@@ -285,7 +285,11 @@ index ce54bd8..55159a3 100644
  	struct f2fs_inode_info *fi = F2FS_I(inode);
  	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
  	struct f2fs_inode *ri = NULL;
-@@ -3804,6 +3836,7 @@ static int release_compress_blocks(struct dnode_of_data *dn, pgoff_t count)
+-	struct f2fs_lock_context lc;
+ 	kprojid_t kprojid;
+ 	int err;
+ 
+@@ -3804,10 +3831,10 @@ static int release_compress_blocks(struct dnode_of_data *dn, pgoff_t count)
  
  static int f2fs_release_compress_blocks(struct file *filp, unsigned long arg)
  {
@@ -293,7 +297,11 @@ index ce54bd8..55159a3 100644
  	struct inode *inode = file_inode(filp);
  	struct f2fs_inode_info *fi = F2FS_I(inode);
  	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
-@@ -4001,6 +4034,7 @@ static int reserve_compress_blocks(struct dnode_of_data *dn, pgoff_t count,
+-	struct f2fs_lock_context lc;
+ 	pgoff_t page_idx = 0, last_idx;
+ 	unsigned int released_blocks = 0;
+ 	int ret;
+@@ -4001,6 +4028,7 @@ static int reserve_compress_blocks(struct dnode_of_data *dn, pgoff_t count,
  
  static int f2fs_reserve_compress_blocks(struct file *filp, unsigned long arg)
  {
@@ -432,18 +440,20 @@ index 278d805..0ec65a6 100644
  	kfree(sbi->iostat_io_lat);
  }
 diff --git a/fs/f2fs/namei.c b/fs/f2fs/namei.c
-index 1a8df13..173d198 100644
+index 1a8df13..8051e13 100644
 --- a/fs/f2fs/namei.c
 +++ b/fs/f2fs/namei.c
-@@ -353,6 +353,7 @@ static struct inode *f2fs_new_inode(struct mnt_idmap *idmap,
+@@ -353,8 +353,8 @@ static struct inode *f2fs_new_inode(struct mnt_idmap *idmap,
  static int f2fs_create(struct mnt_idmap *idmap, struct inode *dir,
  		       struct dentry *dentry, umode_t mode, bool excl)
  {
-+	struct f2fs_lock_context lc;
- 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
+-	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
  	struct f2fs_lock_context lc;
++	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
  	struct inode *inode;
-@@ -399,6 +400,7 @@ static int f2fs_create(struct mnt_idmap *idmap, struct inode *dir,
+ 	nid_t ino = 0;
+ 	int err;
+@@ -399,6 +399,7 @@ static int f2fs_create(struct mnt_idmap *idmap, struct inode *dir,
  
  static int f2fs_link(struct dentry *old_dentry, struct inode *dir,
  		struct dentry *dentry)
@@ -451,7 +461,7 @@ index 1a8df13..173d198 100644
  {
  	struct inode *inode = d_inode(old_dentry);
  	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
-@@ -538,6 +540,7 @@ static struct dentry *f2fs_lookup(struct inode *dir, struct dentry *dentry,
+@@ -538,10 +539,10 @@ static struct dentry *f2fs_lookup(struct inode *dir, struct dentry *dentry,
  
  static int f2fs_unlink(struct inode *dir, struct dentry *dentry)
  {
@@ -459,39 +469,51 @@ index 1a8df13..173d198 100644
  	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
  	struct inode *inode = d_inode(dentry);
  	struct f2fs_dir_entry *de;
-@@ -622,6 +625,7 @@ static const char *f2fs_get_link(struct dentry *dentry,
+-	struct f2fs_lock_context lc;
+ 	struct page *page;
+ 	int err;
+ 
+@@ -622,8 +623,8 @@ static const char *f2fs_get_link(struct dentry *dentry,
  static int f2fs_symlink(struct mnt_idmap *idmap, struct inode *dir,
  			struct dentry *dentry, const char *symname)
  {
-+	struct f2fs_lock_context lc;
- 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
+-	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
  	struct f2fs_lock_context lc;
++	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
  	struct inode *inode;
-@@ -703,6 +707,7 @@ static int f2fs_symlink(struct mnt_idmap *idmap, struct inode *dir,
+ 	size_t len = strlen(symname);
+ 	struct fscrypt_str disk_link;
+@@ -703,8 +704,8 @@ static int f2fs_symlink(struct mnt_idmap *idmap, struct inode *dir,
  static int f2fs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
  		      struct dentry *dentry, umode_t mode)
  {
-+	struct f2fs_lock_context lc;
- 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
+-	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
  	struct f2fs_lock_context lc;
++	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
  	struct inode *inode;
-@@ -759,6 +764,7 @@ static int f2fs_rmdir(struct inode *dir, struct dentry *dentry)
+ 	int err;
+ 
+@@ -759,8 +760,8 @@ static int f2fs_rmdir(struct inode *dir, struct dentry *dentry)
  static int f2fs_mknod(struct mnt_idmap *idmap, struct inode *dir,
  		      struct dentry *dentry, umode_t mode, dev_t rdev)
  {
-+	struct f2fs_lock_context lc;
- 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
+-	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
  	struct f2fs_lock_context lc;
++	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
  	struct inode *inode;
-@@ -804,6 +810,7 @@ static int __f2fs_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
+ 	int err = 0;
+ 
+@@ -804,8 +805,8 @@ static int __f2fs_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
  			  struct file *file, umode_t mode, bool is_whiteout,
  			  struct inode **new_inode, struct f2fs_filename *fname)
  {
-+	struct f2fs_lock_context lc;
- 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
+-	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
  	struct f2fs_lock_context lc;
++	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
  	struct inode *inode;
-@@ -906,6 +913,7 @@ static int f2fs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
+ 	int err;
+ 
+@@ -906,6 +907,7 @@ static int f2fs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
  			struct dentry *old_dentry, struct inode *new_dir,
  			struct dentry *new_dentry, unsigned int flags)
  {
@@ -499,7 +521,15 @@ index 1a8df13..173d198 100644
  	struct f2fs_sb_info *sbi = F2FS_I_SB(old_dir);
  	struct inode *old_inode = d_inode(old_dentry);
  	struct inode *new_inode = d_inode(new_dentry);
-@@ -1105,6 +1113,7 @@ static int f2fs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
+@@ -915,7 +917,6 @@ static int f2fs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
+ 	struct f2fs_dir_entry *old_dir_entry = NULL;
+ 	struct f2fs_dir_entry *old_entry;
+ 	struct f2fs_dir_entry *new_entry;
+-	struct f2fs_lock_context lc;
+ 	bool old_is_dir = S_ISDIR(old_inode->i_mode);
+ 	int err;
+ 
+@@ -1105,6 +1106,7 @@ static int f2fs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
  static int f2fs_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
  			     struct inode *new_dir, struct dentry *new_dentry)
  {
@@ -507,8 +537,16 @@ index 1a8df13..173d198 100644
  	struct f2fs_sb_info *sbi = F2FS_I_SB(old_dir);
  	struct inode *old_inode = d_inode(old_dentry);
  	struct inode *new_inode = d_inode(new_dentry);
+@@ -1112,7 +1114,6 @@ static int f2fs_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
+ 	struct page *old_page, *new_page;
+ 	struct f2fs_dir_entry *old_dir_entry = NULL, *new_dir_entry = NULL;
+ 	struct f2fs_dir_entry *old_entry, *new_entry;
+-	struct f2fs_lock_context lc;
+ 	int old_nlink = 0, new_nlink = 0;
+ 	int err;
+ 
 diff --git a/fs/f2fs/super.c b/fs/f2fs/super.c
-index d7ff0bb..812e04a 100644
+index d7ff0bb..52c00c7 100644
 --- a/fs/f2fs/super.c
 +++ b/fs/f2fs/super.c
 @@ -179,6 +179,7 @@ enum {
@@ -554,18 +592,22 @@ index d7ff0bb..812e04a 100644
  	for (i = 0; i < NR_PAGE_TYPE; i++)
  		kvfree(sbi->write_io[i]);
  #if IS_ENABLED(CONFIG_UNICODE)
-@@ -4009,6 +4024,10 @@ static void init_sb_info(struct f2fs_sb_info *sbi)
+@@ -4009,12 +4024,12 @@ static void init_sb_info(struct f2fs_sb_info *sbi)
  	sbi->seq_file_ra_mul = MIN_RA_MUL;
  	sbi->max_fragment_chunk = DEF_FRAGMENT_SIZE;
  	sbi->max_fragment_hole = DEF_FRAGMENT_SIZE;
-+	sbi->max_lock_elapsed_time = MAX_LOCK_ELAPSED_TIME;
-+	sbi->adjust_lock_priority = 0;
-+	sbi->lock_duration_priority = F2FS_DEFAULT_TASK_PRIORITY;
-+	sbi->critical_task_priority = F2FS_CRITICAL_TASK_PRIORITY;
- 	spin_lock_init(&sbi->gc_remaining_trials_lock);
- 	atomic64_set(&sbi->current_atomic_write, 0);
+-	spin_lock_init(&sbi->gc_remaining_trials_lock);
+-	atomic64_set(&sbi->current_atomic_write, 0);
  	sbi->max_lock_elapsed_time = MAX_LOCK_ELAPSED_TIME;
-@@ -4303,6 +4322,7 @@ void f2fs_save_errors(struct f2fs_sb_info *sbi, unsigned char flag)
+ 	sbi->adjust_lock_priority = 0;
+ 	sbi->lock_duration_priority = F2FS_DEFAULT_TASK_PRIORITY;
+ 	sbi->critical_task_priority = F2FS_CRITICAL_TASK_PRIORITY;
++	spin_lock_init(&sbi->gc_remaining_trials_lock);
++	atomic64_set(&sbi->current_atomic_write, 0);
+ 
+ 	sbi->dir_level = DEF_DIR_LEVEL;
+ 	sbi->interval_time[CP_TIME] = DEF_CP_INTERVAL;
+@@ -4303,6 +4318,7 @@ void f2fs_save_errors(struct f2fs_sb_info *sbi, unsigned char flag)
  
  void f2fs_handle_error(struct f2fs_sb_info *sbi, unsigned char error)
  {
@@ -573,7 +615,7 @@ index d7ff0bb..812e04a 100644
  	f2fs_save_errors(sbi, error);
  
  	if (!sbi->error_dirty)
-@@ -4694,6 +4714,8 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
+@@ -4694,6 +4710,8 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
  	if (err)
  		goto free_bio_info;
  
@@ -582,7 +624,7 @@ index d7ff0bb..812e04a 100644
  	err = init_percpu_info(sbi);
  	if (err)
  		goto free_iostat;
-@@ -5038,6 +5060,7 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
+@@ -5038,6 +5056,7 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
  	destroy_percpu_info(sbi);
  free_iostat:
  	f2fs_destroy_iostat(sbi);
