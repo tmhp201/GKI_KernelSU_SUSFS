@@ -804,6 +804,21 @@ jobs:
           else
             echo "susfs.c 不存在或已修改，跳过"
           fi
+      - name: 应用小米特性适配补丁 (0005-adapted, VIP)
+        if: inputs.kernel_version == '6.6' && inputs.android_version == 'android15'
+        working-directory: ${{ env.KERNEL_ROOT }}/common
+        run: |
+          set -e
+          echo "=== 应用 0005-adapted (VIP, 已本地三方合并适配 SUSFS) ==="
+          patch -p1 --forward < "$GITHUB_WORKSPACE/xiaomi_parity/0005-adapted-zzsusfs.patch"
+          echo "=== 配置: 启用 VIP, 压制粒度不足/空壳特性 ==="
+          cat >> "$DEFCONFIG" << 'EOF'
+          CONFIG_F2FS_VIP_FILE=y
+          # CONFIG_XIAOMI_ENHANCED_IOSTAT is not set
+          # CONFIG_F2FS_FS_HYBRID_UFS is not set
+          # CONFIG_BLOCK_HYBRID_UFS is not set
+          EOF
+          echo "小米 VIP 特性注入完成"
       - name: 生成 SUSFS 集成补丁
         if: env.SUSFS_PATCH_EXPORT == 'true'
         working-directory: ${{ env.KERNEL_ROOT }}/common
