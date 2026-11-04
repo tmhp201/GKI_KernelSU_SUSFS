@@ -792,6 +792,24 @@ jobs:
           SUB_LEVEL: ${{ inputs.sub_level }}
         run: bash "$GITHUB_WORKSPACE/scripts/susfs_fixes/apply.sh"
 
+      - name: 应用小米特性对齐补丁
+        if: inputs.kernel_version == '6.6' && inputs.android_version == 'android15'
+        working-directory: ${{ env.KERNEL_ROOT }}/common
+        run: |
+          set -e
+          echo "=== 应用 0005 F2FS VIP 特性补丁 ==="
+          patch -p1 --forward < "$GITHUB_WORKSPACE/xiaomi_parity/0005-xiaomi-f2fs-features.patch"
+          echo "=== 应用 0007 vendor hooks 补丁 ==="
+          patch -p1 --forward < "$GITHUB_WORKSPACE/xiaomi_parity/0007-stock-parity-hooks.patch"
+          echo "=== 配置: 仅启用 VIP, 压制粒度不足/空壳特性 ==="
+          cat >> "$DEFCONFIG" << 'EOF'
+          CONFIG_F2FS_VIP_FILE=y
+          # CONFIG_XIAOMI_ENHANCED_IOSTAT is not set
+          # CONFIG_F2FS_FS_HYBRID_UFS is not set
+          # CONFIG_BLOCK_HYBRID_UFS is not set
+          EOF
+          echo "小米特性补丁应用完成（仅 VIP）"
+
       - name: 生成 SUSFS 集成补丁
         if: env.SUSFS_PATCH_EXPORT == 'true'
         working-directory: ${{ env.KERNEL_ROOT }}/common
