@@ -1,0 +1,20 @@
+--- a/fs/susfs.c
++++ b/fs/susfs.c
+@@ -180,7 +180,7 @@
+  * susfs_restore_creds() afterwards.
+  * Returns the original credentials on success, NULL on failure.
+  */
+-static struct cred *susfs_switch_to_ksu_domain(void) {
++static __maybe_unused struct cred *susfs_switch_to_ksu_domain(void) {
+ 	struct cred *orig_cred = NULL;
+ 	struct cred *cred = NULL;
+
+@@ -214,7 +214,7 @@
+  * Restores the original credentials that were saved by
+  * susfs_switch_to_ksu_domain().
+  */
+-static void susfs_restore_creds(struct cred *orig_cred) {
++static __maybe_unused void susfs_restore_creds(struct cred *orig_cred) {
+ 	if (!orig_cred)
+ 		return;
+
