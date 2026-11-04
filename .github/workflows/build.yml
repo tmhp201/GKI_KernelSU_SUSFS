@@ -792,6 +792,18 @@ jobs:
           SUB_LEVEL: ${{ inputs.sub_level }}
         run: bash "$GITHUB_WORKSPACE/scripts/susfs_fixes/apply.sh"
 
+      - name: SUSFS 未使用函数修复 (upstream bug)
+        if: inputs.enable_susfs
+        working-directory: ${{ env.KERNEL_ROOT }}/common
+        run: |
+          set -e
+          echo "=== 给 susfs.c 两个上游未使用函数加 __maybe_unused ==="
+          if grep -q 'static struct cred \*susfs_switch_to_ksu_domain' fs/susfs.c; then
+            patch -p1 --forward < "$GITHUB_WORKSPACE/susfs_fix/susfs-unused-fix.patch"
+            echo "补丁已应用"
+          else
+            echo "susfs.c 不存在或已修改，跳过"
+          fi
       - name: 生成 SUSFS 集成补丁
         if: env.SUSFS_PATCH_EXPORT == 'true'
         working-directory: ${{ env.KERNEL_ROOT }}/common
