@@ -1448,7 +1448,7 @@ index 0000000..e8db6e0
 +
 +#endif /* _F2FS_XIAOMI_H */
 diff --git a/include/trace/events/f2fs.h b/include/trace/events/f2fs.h
-index 2b85582..f8662b0 100644
+index 2b85582..0d21eec 100644
 --- a/include/trace/events/f2fs.h
 +++ b/include/trace/events/f2fs.h
 @@ -6,10 +6,20 @@
@@ -1472,28 +1472,10 @@ index 2b85582..f8662b0 100644
  
  TRACE_DEFINE_ENUM(NODE);
  TRACE_DEFINE_ENUM(DATA);
-@@ -2562,6 +2572,30 @@ TRACE_EVENT(f2fs_fault_report,
+@@ -2562,6 +2572,12 @@ TRACE_EVENT(f2fs_fault_report,
  		__entry->data)
  );
  
-+DEFINE_EVENT(f2fs_priority_update, f2fs_priority_uplift,
-+
-+	TP_PROTO(struct f2fs_sb_info *sbi, enum f2fs_lock_name lock_name,
-+		bool is_write, struct task_struct *p, int orig_prio,
-+		int new_prio),
-+
-+	TP_ARGS(sbi, lock_name, is_write, p, orig_prio, new_prio)
-+);
-+
-+DEFINE_EVENT(f2fs_priority_update, f2fs_priority_restore,
-+
-+	TP_PROTO(struct f2fs_sb_info *sbi, enum f2fs_lock_name lock_name,
-+		bool is_write, struct task_struct *p, int orig_prio,
-+		int new_prio),
-+
-+	TP_ARGS(sbi, lock_name, is_write, p, orig_prio, new_prio)
-+);
-+
 +/*
 + * Stock dash 6.6.118 exposes this tracepoint for fault_report.ko.  The
 + * module finds it by name through for_each_kernel_tracepoint(), so the
