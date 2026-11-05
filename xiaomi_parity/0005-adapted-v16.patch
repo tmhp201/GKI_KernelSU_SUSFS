@@ -687,7 +687,7 @@ index 279ab23..6f55268 100644
  static ssize_t dirty_segments_show(struct f2fs_attr *a,
  		struct f2fs_sb_info *sbi, char *buf)
  {
-@@ -1089,6 +1262,35 @@ static struct f2fs_attr f2fs_attr_##_name = {			\
+@@ -1089,6 +1262,31 @@
  #define F2FS_GENERAL_RO_ATTR(name) \
  static struct f2fs_attr f2fs_attr_##name = __ATTR(name, 0444, name##_show, NULL)
  
@@ -706,10 +706,6 @@ index 279ab23..6f55268 100644
 +F2FS_XIAOMI_ATTR(iostat_window_latency, 0644);
 +F2FS_XIAOMI_ATTR(iostat_daily_latency, 0644);
 +#endif
-+F2FS_XIAOMI_ATTR(max_lock_elapsed_time, 0644);
-+F2FS_XIAOMI_ATTR(adjust_lock_priority, 0644);
-+F2FS_XIAOMI_ATTR(lock_duration_priority, 0644);
-+F2FS_XIAOMI_ATTR(critical_task_priority, 0644);
 +#ifdef CONFIG_F2FS_VIP_FILE
 +F2FS_XIAOMI_ATTR(vip_file_enable, 0644);
 +F2FS_XIAOMI_ATTR(vip_inode_count, 0444);
@@ -723,7 +719,7 @@ index 279ab23..6f55268 100644
  #ifdef CONFIG_F2FS_STAT_FS
  #define STAT_INFO_RO_ATTR(name, elname)				\
  	F2FS_RO_ATTR(STAT_INFO, f2fs_stat_info, name, elname)
-@@ -1361,6 +1563,27 @@ static struct attribute *f2fs_attrs[] = {
+@@ -1361,6 +1563,23 @@
  #ifdef CONFIG_F2FS_IOSTAT
  	ATTR_LIST(iostat_enable),
  	ATTR_LIST(iostat_period_ms),
@@ -736,10 +732,6 @@ index 279ab23..6f55268 100644
 +	ATTR_LIST(iostat_window_latency),
 +	ATTR_LIST(iostat_daily_latency),
 +#endif
-+	ATTR_LIST(max_lock_elapsed_time),
-+	ATTR_LIST(adjust_lock_priority),
-+	ATTR_LIST(lock_duration_priority),
-+	ATTR_LIST(critical_task_priority),
 +#ifdef CONFIG_F2FS_VIP_FILE
 +	ATTR_LIST(vip_file_enable),
 +	ATTR_LIST(vip_inode_count),
