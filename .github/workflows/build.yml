@@ -886,6 +886,33 @@ jobs:
             echo "SUSFS_PATCH_EXPORT=false" >> $GITHUB_ENV
           fi
 
+      - name: 应用 Xiaomi F2FS 私有特性 (0005)
+        working-directory: ${{ env.KERNEL_ROOT }}/common
+        run: |
+          set -euo pipefail
+          PATCH="$GITHUB_WORKSPACE/xiaomi_parity/0005-adapted-v16.patch"
+          if [ ! -s "$PATCH" ]; then
+            echo "::error::找不到 Xiaomi F2FS 特性补丁: $PATCH"
+            exit 1
+          fi
+          echo "=== 应用 0005 (F2FS_VIP_FILE / XIAOMI_ENHANCED_IOSTAT / HYBRID_UFS) ==="
+          git apply --check "$PATCH" || { echo "::error::0005 补丁上下文与当前源码树不匹配"; exit 1; }
+          git apply "$PATCH"
+          echo "git apply 成功"
+          test -f fs/f2fs/xiaomi.c || { echo "::error::xiaomi.c 未生成"; exit 1; }
+          test -f fs/f2fs/xiaomi.h || { echo "::error::xiaomi.h 未生成"; exit 1; }
+          echo "=== 追加 F2FS 特性 defconfig ==="
+          FRAG="$KERNEL_ROOT/common/arch/arm64/configs/ksu.fragment"
+          if [ -f "$FRAG" ]; then
+            for cfg in CONFIG_F2FS_VIP_FILE=y CONFIG_XIAOMI_ENHANCED_IOSTAT=y CONFIG_F2FS_FS_HYBRID_UFS=y; do
+              grep -q "^${cfg}$" "$FRAG" || echo "$cfg" >> "$FRAG"
+            done
+            echo "ksu.fragment 已追加: F2FS_VIP_FILE / XIAOMI_ENHANCED_IOSTAT / F2FS_FS_HYBRID_UFS"
+          else
+            echo "::warning::未找到 ksu.fragment，依赖 Kconfig default=y 自动启用"
+          fi
+          echo "Xiaomi F2FS 特性补丁应用完成"
+
       - name: 克隆 Droidspaces 补丁仓库
         if: inputs.droidspaces != 'off'
         run: |
