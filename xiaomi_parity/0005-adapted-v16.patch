@@ -345,14 +345,6 @@ index 1a8df13..8051e13 100644
  	struct inode *inode;
  	nid_t ino = 0;
  	int err;
-@@ -399,6 +399,7 @@ static int f2fs_create(struct mnt_idmap *idmap, struct inode *dir,
- 
- static int f2fs_link(struct dentry *old_dentry, struct inode *dir,
- 		struct dentry *dentry)
-+	struct f2fs_lock_context lc;
- {
- 	struct inode *inode = d_inode(old_dentry);
- 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
 @@ -538,10 +539,10 @@ static struct dentry *f2fs_lookup(struct inode *dir, struct dentry *dentry,
  
  static int f2fs_unlink(struct inode *dir, struct dentry *dentry)
