@@ -1,3 +1,7 @@
 # Unified patch payloads intentionally preserve space-prefixed blank context
 # lines and kernel-style tab indentation.
 security_patch/*.patch -whitespace
+
+# KernelSU source patches are applied with `git apply` during CI.  CRLF in a
+# hunk context line makes the match fail on Linux runners, so never EOL-convert.
+patches/*.patch -text -whitespace
