@@ -1,0 +1,88 @@
+--- a/kernel/feature/selinux_hide.c
++++ b/kernel/feature/selinux_hide.c
+@@ -402,7 +402,9 @@
+         pr_err("selinux_hide: no write_op found!\n");
+         return -ENOSYS;
+     }
++#ifndef CONFIG_KSU_SUSFS
+     hook_selinux_status_open();
++#endif
+ 
+     security_dump_masked_av_fn = find_kernel_symbol_exact("security_dump_masked_av");
+     if (!security_dump_masked_av_fn) {
+@@ -413,6 +415,16 @@
+         pr_warn("context_struct_compute_av not found!\n");
+     }
+ 
++#ifdef CONFIG_KSU_SUSFS
++    /*
++     * SUSFS wires sel_write_context/access, sel_open_handle_status and
++     * setprocattr at compile time.  Do not touch the fixmap-patched slots:
++     * on EL2-protected kernels (XRING O1) that write faults with -EFAULT
++     * and may reboot the device.  ksu_lsm_hook() below still runs to fill
++     * selinux_setprocattr_hook.original for uid < 10000.
++     */
++    pr_info("selinux_hide: SUSFS static hooks active, skip runtime patch_text\n");
++#else
+     context_write = &selinux_write_op[SEL_CONTEXT];
+     pr_info("selinux_hide: context_write: 0x%lx [%pSb]\n", (unsigned long)*context_write, *context_write);
+     write_op_fn my = my_write_context;
+@@ -432,6 +444,7 @@
+         pr_err("selinux_hide: init: patch_text access_write err: %d\n", ret);
+         goto unhook;
+     }
++#endif
+ 
+     ret = ksu_lsm_hook(&selinux_setprocattr_hook);
+     if (ret) {
+@@ -448,6 +461,7 @@
+ 
+ static void ksu_selinux_hide_unhook()
+ {
++#ifndef CONFIG_KSU_SUSFS
+     int ret;
+     if (orig_context_write) {
+         ret =
+@@ -472,6 +486,7 @@
+             pr_err("selinux_hide: exit: patch_text sel_open_handle_status err: %d\n", ret);
+         }
+     }
++#endif
+     ksu_lsm_unhook(&selinux_setprocattr_hook);
+ }
+ 
+@@ -493,7 +508,6 @@
+     int ret = 0;
+     pr_info("selinux_hide: set to %d\n", enable);
+     mutex_lock(&selinux_hide_mutex);
+-    ksu_selinux_hide_enabled = enable;
+     if (enable) {
+         if (!ksu_selinux_hide_running) {
+             ret = ksu_selinux_hide_enable();
+@@ -501,11 +515,16 @@
+                 ksu_selinux_hide_running = true;
+             }
+         }
++        /* publish only after enable() succeeded, so get_handler and the
++         * SUSFS wrappers never see "on" while the hooks are down */
++        if (ksu_selinux_hide_running)
++            ksu_selinux_hide_enabled = true;
+     } else {
+         if (ksu_selinux_hide_running) {
+             ksu_selinux_hide_disable();
+             ksu_selinux_hide_running = false;
+         }
++        ksu_selinux_hide_enabled = false;
+     }
+     mutex_unlock(&selinux_hide_mutex);
+     return ret;
+@@ -569,7 +588,9 @@
+     } else {
+         static_key_enable(&fake_status_initialize_key.key);
+     }
++#ifndef CONFIG_KSU_SUSFS
+     hook_selinux_status_open();
++#endif
+ }
+ 
+ void __exit ksu_selinux_hide_exit()
