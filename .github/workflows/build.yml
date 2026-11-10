@@ -630,29 +630,27 @@ jobs:
             echo "KSU_LATEST_COMMIT_DATE=未知" >> $GITHUB_ENV
           fi
 
-      # Xiaomi XRING O1: EL2 hypervisor protects the selinuxfs function
-      # pointer pages.  ksu_patch_text() (fixmap alias write) faults with
-      # -EFAULT (-14) there, leaves ksu_selinux_hide_running false and can
-      # reboot the device (KernelSU#3978, closed by maintainer: "EL2层有保护").
-      # When SUSFS is built in, its kernel patch already wires the same
-      # handlers at compile time, so skip the runtime patch_text entirely.
-      - name: 修补 selinux_hide 走 SUSFS 静态 hook（EL2 保护设备）
+      # BakaSU (and SukiSU) already skip runtime fixmap patching when SUSFS
+      # static SELinux hooks are detected: kernel/tools/susfs_compat.mk defines
+      # KSU_COMPAT_HAS_SUSFS_FEATURE_SELINUX_HIDE when security/selinux/hooks.c
+      # contains ksu_selinux_hide_running (injected by the SUSFS kernel patch).
+      # That avoids the EL2-protected selinuxfs pages on Xiaomi XRING O1
+      # (KernelSU#3978).  The only remaining defect is a state-ordering bug in
+      # selinux_hide_feature_set(): the enabled flag is published before
+      # enable() runs, so a failed enable leaves the manager showing "on"
+      # while all SUSFS static hooks are gated off.  Fix that one place.
+      - name: 修补 selinux_hide 状态发布顺序（SUSFS 静态 hook）
         if: inputs.enable_susfs && inputs.ksu_mode != '禁用KSU'
         working-directory: ${{ env.KERNEL_ROOT }}/KernelSU
         run: |
           set -e
           F=kernel/feature/selinux_hide.c
+          S="$GITHUB_WORKSPACE/patches/patch_selinux_hide.py"
           [ -f "$F" ] || { echo "::error::$F not found"; exit 1; }
-          if grep -q "SUSFS static hooks active" "$F"; then
-            echo "already patched, skip"
-            exit 0
-          fi
-          P="$GITHUB_WORKSPACE/patches/selinux_hide_susfs_static.patch"
-          [ -f "$P" ] || { echo "::error::patch file missing: $P"; exit 1; }
-          git apply --check --verbose "$P"
-          git apply "$P"
+          [ -f "$S" ] || { echo "::error::patch script missing: $S"; exit 1; }
+          python3 "$S" "$F"
           echo "=== applied ==="
-          grep -nE "CONFIG_KSU_SUSFS|skip runtime patch_text" "$F"
+          grep -nE "ksu_selinux_hide_enabled =|publish only after" "$F"
           git diff --stat
 
       - name: 配置 SukiSU 管理器信息
