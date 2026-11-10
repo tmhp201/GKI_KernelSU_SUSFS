@@ -2,6 +2,7 @@
 # lines and kernel-style tab indentation.
 security_patch/*.patch -whitespace
 
-# KernelSU source patches are applied with `git apply` during CI.  CRLF in a
-# hunk context line makes the match fail on Linux runners, so never EOL-convert.
+# KernelSU sources are rewritten by patches/patch_selinux_hide.py during CI.
+# Keep script/content payloads free of EOL conversion.
+patches/*.py -text
 patches/*.patch -text -whitespace
